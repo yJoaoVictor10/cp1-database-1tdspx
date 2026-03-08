@@ -1,7 +1,6 @@
 import os
 import oracledb
 
-
 def conectar():
     return oracledb.connect(
         user=os.environ.get("DB_USER"),
@@ -87,7 +86,12 @@ def handler(request):
     herois = listar_herois()
 
     html = """
-    <h1>⚔️ SQLgard - RPG Engine</h1>
+    <html>
+    <head>
+        <title>SQLgard RPG Engine</title>
+    </head>
+    <body>
+        <h1>⚔️ SQLgard - Estado dos Heróis</h1>
     """
 
     for h in herois:
@@ -101,9 +105,11 @@ def handler(request):
         """
 
     html += """
-    <a href='/?action=turno'>
-        <button>Próximo Turno</button>
-    </a>
+        <a href="/?action=turno">
+            <button>Próximo Turno</button>
+        </a>
+    </body>
+    </html>
     """
 
     return html
