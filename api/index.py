@@ -4,95 +4,155 @@ from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
+
+# ==========================
+# CONEXÃO COM O BANCO
+# ==========================
 def get_connection():
-    return oracledb.connect(
-        user=os.environ["DB_USER"],
-        password=os.environ["DB_PASSWORD"],
-        dsn=os.environ["DB_DSN"]
-    )
+    try:
+        user = os.environ.get("DB_USER")
+        password = os.environ.get("DB_PASSWORD")
+        dsn = os.environ.get("DB_DSN")
+
+        if not user or not password or not dsn:
+            raise Exception("Variáveis de ambiente DB_USER, DB_PASSWORD ou DB_DSN não configuradas")
+
+        conn = oracledb.connect(
+            user=user,
+            password=password,
+            dsn=dsn
+        )
+
+        return conn
+
+    except Exception as e:
+        raise Exception(f"Erro ao conectar no Oracle: {str(e)}")
 
 
-@app.route("/")
+# ==========================
+# LISTAR HERÓIS
+# ==========================
+@app.route("/", methods=["GET"])
 def listar_herois():
 
-    conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
 
-    cursor.execute("""
-        SELECT id_heroi, nome, classe, hp_atual, hp_max, status
-        FROM TB_HEROIS
-        ORDER BY id_heroi
-    """)
+        cursor.execute("""
+            SELECT id_heroi, nome, classe, hp_atual, hp_max, status
+            FROM TB_HEROIS
+            ORDER BY id_heroi
+        """)
 
-    herois = []
+        herois = []
 
-    for row in cursor:
-        herois.append({
-            "id": row[0],
-            "nome": row[1],
-            "classe": row[2],
-            "hp_atual": row[3],
-            "hp_max": row[4],
-            "status": row[5]
+        for row in cursor:
+            herois.append({
+                "id": row[0],
+                "nome": row[1],
+                "classe": row[2],
+                "hp_atual": row[3],
+                "hp_max": row[4],
+                "status": row[5]
+            })
+
+        cursor.close()
+        conn.close()
+
+        return jsonify({
+            "status": "ok",
+            "herois": herois
         })
 
-    cursor.close()
-    conn.close()
+    except Exception as e:
 
-    return jsonify(herois)
+        return jsonify({
+            "status": "erro",
+            "mensagem": str(e)
+        }), 500
 
 
+# ==========================
+# PROCESSAR PRÓXIMO TURNO
+# ==========================
 @app.route("/processar", methods=["POST"])
-def proximo_turno():
+def processar_turno():
 
-    conn = get_connection()
-    cursor = conn.cursor()
+    try:
 
-    plsql = """
-    DECLARE
+        conn = get_connection()
+        cursor = conn.cursor()
 
-        v_dano_nevoa NUMBER := 10;
-        v_novo_hp NUMBER;
+        plsql = """
+        DECLARE
 
-        CURSOR c_herois IS
-            SELECT id_heroi, hp_atual
-            FROM TB_HEROIS
-            WHERE status = 'ATIVO';
+            v_dano_nevoa NUMBER := 10;
+            v_novo_hp NUMBER;
 
-    BEGIN
+            CURSOR c_herois IS
+                SELECT id_heroi, hp_atual
+                FROM TB_HEROIS
+                WHERE status = 'ATIVO';
 
-        FOR heroi IN c_herois LOOP
+        BEGIN
 
-            v_novo_hp := heroi.hp_atual - v_dano_nevoa;
+            FOR heroi IN c_herois LOOP
 
-            UPDATE TB_HEROIS
-            SET hp_atual = v_novo_hp
-            WHERE id_heroi = heroi.id_heroi;
-
-            IF v_novo_hp <= 0 THEN
+                v_novo_hp := heroi.hp_atual - v_dano_nevoa;
 
                 UPDATE TB_HEROIS
-                SET status = 'CAIDO',
-                    hp_atual = 0
+                SET hp_atual = v_novo_hp
                 WHERE id_heroi = heroi.id_heroi;
 
-            END IF;
+                IF v_novo_hp <= 0 THEN
 
-        END LOOP;
+                    UPDATE TB_HEROIS
+                    SET status = 'CAIDO',
+                        hp_atual = 0
+                    WHERE id_heroi = heroi.id_heroi;
 
-        COMMIT;
+                END IF;
 
-    END;
-    """
+            END LOOP;
 
-    cursor.execute(plsql)
+            COMMIT;
 
-    cursor.close()
-    conn.close()
+        END;
+        """
 
-    return jsonify({"mensagem": "Turno processado com sucesso!"})
+        cursor.execute(plsql)
+
+        cursor.close()
+        conn.close()
+
+        return jsonify({
+            "status": "ok",
+            "mensagem": "Turno processado com sucesso"
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "status": "erro",
+            "mensagem": str(e)
+        }), 500
 
 
-# necessário para o Vercel
+# ==========================
+# ROTA DE TESTE
+# ==========================
+@app.route("/health", methods=["GET"])
+def health():
+
+    return jsonify({
+        "status": "online",
+        "mensagem": "API RPG funcionando"
+    })
+
+
+# ==========================
+# HANDLER PARA VERCEL
+# ==========================
 def handler(request):
     return app(request.environ, lambda status, headers: None)
