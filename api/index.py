@@ -8,7 +8,6 @@ def conectar():
         dsn=os.environ.get("DB_DSN")
     )
 
-
 def listar_herois():
 
     conn = conectar()
@@ -35,7 +34,6 @@ def processar_turno():
 
     plsql = """
     DECLARE
-
         v_dano_nevoa NUMBER := 10;
         v_novo_hp NUMBER;
 
@@ -55,12 +53,10 @@ def processar_turno():
             WHERE id_heroi = heroi.id_heroi;
 
             IF v_novo_hp <= 0 THEN
-
                 UPDATE TB_HEROIS
                 SET status = 'CAIDO',
                     hp_atual = 0
                 WHERE id_heroi = heroi.id_heroi;
-
             END IF;
 
         END LOOP;
@@ -78,38 +74,37 @@ def processar_turno():
 
 def handler(request):
 
-    action = request.args.get("action")
+    try:
 
-    if action == "turno":
-        processar_turno()
+        action = None
 
-    herois = listar_herois()
+        if hasattr(request, "args"):
+            action = request.args.get("action")
 
-    html = """
-    <html>
-    <head>
-        <title>SQLgard RPG Engine</title>
-    </head>
-    <body>
-        <h1>⚔️ SQLgard - Estado dos Heróis</h1>
-    """
+        if action == "turno":
+            processar_turno()
 
-    for h in herois:
+        herois = listar_herois()
 
-        html += f"""
-        <p>
-        <b>{h[1]}</b> ({h[2]})<br>
-        HP: {h[3]} / {h[4]}<br>
-        Status: {h[5]}
-        </p>
+        html = "<h1>⚔️ SQLgard - Heróis</h1>"
+
+        for h in herois:
+
+            html += f"""
+            <p>
+            <b>{h[1]}</b> ({h[2]})<br>
+            HP: {h[3]} / {h[4]}<br>
+            Status: {h[5]}
+            </p>
+            """
+
+        html += """
+        <a href="/?action=turno">
+        <button>Próximo Turno</button>
+        </a>
         """
 
-    html += """
-        <a href="/?action=turno">
-            <button>Próximo Turno</button>
-        </a>
-    </body>
-    </html>
-    """
+        return html
 
-    return html
+    except Exception as e:
+        return f"<h2>Erro:</h2><pre>{str(e)}</pre>"
