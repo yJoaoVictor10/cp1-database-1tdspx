@@ -1,12 +1,13 @@
-import os
 import oracledb
+
 
 def conectar():
     return oracledb.connect(
-        user=os.environ.get("DB_USER"),
-        password=os.environ.get("DB_PASSWORD"),
-        dsn=os.environ.get("DB_DSN")
+        user="rm563409",
+        password="160507",
+        dsn="oracle.fiap.com.br:1521/orcl"
     )
+
 
 def listar_herois():
 
@@ -34,6 +35,7 @@ def processar_turno():
 
     plsql = """
     DECLARE
+
         v_dano_nevoa NUMBER := 10;
         v_novo_hp NUMBER;
 
@@ -53,10 +55,12 @@ def processar_turno():
             WHERE id_heroi = heroi.id_heroi;
 
             IF v_novo_hp <= 0 THEN
+
                 UPDATE TB_HEROIS
                 SET status = 'CAIDO',
                     hp_atual = 0
                 WHERE id_heroi = heroi.id_heroi;
+
             END IF;
 
         END LOOP;
@@ -86,7 +90,15 @@ def handler(request):
 
         herois = listar_herois()
 
-        html = "<h1>⚔️ SQLgard - Heróis</h1>"
+        html = """
+        <html>
+        <head>
+        <title>SQLgard RPG Engine</title>
+        </head>
+        <body>
+
+        <h1>⚔️ SQLgard - Estado dos Heróis</h1>
+        """
 
         for h in herois:
 
@@ -102,9 +114,16 @@ def handler(request):
         <a href="/?action=turno">
         <button>Próximo Turno</button>
         </a>
+
+        </body>
+        </html>
         """
 
         return html
 
     except Exception as e:
-        return f"<h2>Erro:</h2><pre>{str(e)}</pre>"
+
+        return f"""
+        <h2>Erro na aplicação</h2>
+        <pre>{str(e)}</pre>
+        """
